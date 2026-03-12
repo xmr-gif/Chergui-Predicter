@@ -1,4 +1,5 @@
 import { useState } from "react";
+import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import {
   Building2,
@@ -50,6 +51,8 @@ const planFeatures = [
 export default function Signup() {
   const navigate = useNavigate();
   const [step, setStep] = useState<"plan" | "form">("plan");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [formData, setFormData] = useState({
     companyName: "",
     capacity: "",
@@ -63,10 +66,28 @@ export default function Signup() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem("bs_authenticated", "true");
-    navigate("/");
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const res = await axios.post("/api/signup/", {
+        company_name: formData.companyName,
+        capacity: parseInt(formData.capacity),
+        installation_type: formData.installationType,
+        province: formData.province,
+        email: formData.email,
+        contact_name: formData.contactName,
+      });
+      navigate(`/payment?id=${res.data.id}`);
+    } catch (err: any) {
+      setSubmitError(
+        err.response?.data?.detail ||
+          "Erreur lors de l'inscription. Veuillez réessayer."
+      );
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -331,13 +352,30 @@ export default function Signup() {
                 </span>
               </div>
 
+              {/* Error */}
+              {submitError && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-xs text-red-400">
+                  {submitError}
+                </div>
+              )}
+
               {/* Submit */}
               <button
                 type="submit"
-                className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
+                disabled={isSubmitting}
+                className="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 disabled:cursor-wait text-black font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
               >
-                Activer mon compte
-                <ArrowRight className="w-4 h-4" />
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                    Inscription en cours...
+                  </>
+                ) : (
+                  <>
+                    Continuer vers le paiement
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
 
               {/* Back */}
