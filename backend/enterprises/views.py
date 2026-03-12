@@ -1,6 +1,8 @@
 import uuid
+import random
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -8,11 +10,31 @@ from .models import Enterprise
 from .serializers import (
     EnterpriseSignupSerializer,
     EnterpriseStatusSerializer,
+    EnterpriseProfileSerializer,
     PaymentConfirmSerializer,
     LoginSerializer,
     ForgotPasswordSerializer,
+    UpdateProfileSerializer,
+    ChangePasswordSerializer,
+    RequestEmailChangeSerializer,
+    ConfirmEmailChangeSerializer,
 )
-from .emails import send_signup_notification, send_password_reset_email
+from .emails import (
+    send_signup_notification,
+    send_password_reset_email,
+    send_email_verification_code,
+)
+
+
+def _get_enterprise_from_token(request):
+    """Extract enterprise from JWT token claims."""
+    enterprise_id = request.auth.get('enterprise_id') if request.auth else None
+    if not enterprise_id:
+        return None
+    try:
+        return Enterprise.objects.get(id=enterprise_id)
+    except Enterprise.DoesNotExist:
+        return None
 
 
 @api_view(['POST'])
@@ -134,6 +156,7 @@ def login(request):
             status_messages = {
                 'pending_payment': 'Votre paiement n\'a pas encore été effectué.',
                 'pending_activation': 'Votre compte est en attente d\'activation par notre équipe.',
+                'cancelled': 'Votre abonnement a été résilié.',
             }
             return Response(
                 {
@@ -181,7 +204,6 @@ def token_refresh(request):
 def forgot_password(request):
     """
     Send a password reset email to the enterprise.
-    For hackathon: the new password is generated and logged to console.
     """
     serializer = ForgotPasswordSerializer(data=request.data)
     if serializer.is_valid():
@@ -190,12 +212,10 @@ def forgot_password(request):
         try:
             enterprise = Enterprise.objects.get(email=email)
         except Enterprise.DoesNotExist:
-            # Don't reveal whether email exists — always return success
             return Response(
                 {'message': 'Si cet email est enregistré, vous recevrez un lien de réinitialisation.'}
             )
 
-        # Generate a temporary password for hackathon demo
         temp_password = uuid.uuid4().hex[:10]
         enterprise.set_password(temp_password)
         enterprise.save()
@@ -207,3 +227,158 @@ def forgot_password(request):
         )
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ─── Account Settings Endpoints ─────────────────────────────────
+
+@api_view(['GET', 'PUT'])
+@permission_classes([IsAuthenticated])
+def profile(request):
+    """
+    GET: Return the current enterprise's profile.
+    PUT: Update profile info (company_name, contact_name, etc.).
+    """
+    enterprise = _get_enterprise_from_token(request)
+    if not enterprise:
+        return Response({'error': 'Entreprise non trouvée.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = EnterpriseProfileSerializer(enterprise)
+        return Response(serializer.data)
+
+    # PUT
+    serializer = UpdateProfileSerializer(data=request.data)
+    if serializer.is_valid():
+        for field, value in serializer.validated_data.items():
+            setattr(enterprise, field, value)
+        enterprise.save()
+        return Response(EnterpriseProfileSerializer(enterprise).data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    """Change password (requires current password)."""
+    enterprise = _get_enterprise_from_token(request)
+    if not enterprise:
+        return Response({'error': 'Entreprise non trouvée.'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = ChangePasswordSerializer(data=request.data)
+    if serializer.is_valid():
+        if not enterprise.verify_password(serializer.validated_data['old_password']):
+            return Response(
+                {'error': 'Mot de passe actuel incorrect.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        enterprise.set_password(serializer.validated_data['new_password'])
+        enterprise.save()
+        return Response({'message': 'Mot de passe modifié avec succès.'})
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def request_email_change(request):
+    """
+    Initiate email change: sends a 6-digit verification code to the OLD email.
+    Requires password confirmation.
+    """
+    enterprise = _get_enterprise_from_token(request)
+    if not enterprise:
+        return Response({'error': 'Entreprise non trouvée.'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = RequestEmailChangeSerializer(data=request.data)
+    if serializer.is_valid():
+        if not enterprise.verify_password(serializer.validated_data['password']):
+            return Response(
+                {'error': 'Mot de passe incorrect.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        new_email = serializer.validated_data['new_email']
+
+        # Check if new email is already in use
+        if Enterprise.objects.filter(email=new_email).exclude(id=enterprise.id).exists():
+            return Response(
+                {'error': 'Cet email est déjà utilisé par un autre compte.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Generate 6-digit code
+        code = f"{random.randint(100000, 999999)}"
+        enterprise.pending_email = new_email
+        enterprise.email_verification_code = code
+        enterprise.save()
+
+        # Send code to OLD email
+        send_email_verification_code(enterprise, code)
+
+        return Response({
+            'message': f'Un code de vérification a été envoyé à {enterprise.email}.',
+        })
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def confirm_email_change(request):
+    """
+    Confirm email change with the 6-digit verification code.
+    """
+    enterprise = _get_enterprise_from_token(request)
+    if not enterprise:
+        return Response({'error': 'Entreprise non trouvée.'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = ConfirmEmailChangeSerializer(data=request.data)
+    if serializer.is_valid():
+        code = serializer.validated_data['verification_code']
+
+        if not enterprise.email_verification_code or not enterprise.pending_email:
+            return Response(
+                {'error': 'Aucune demande de changement d\'email en cours.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if enterprise.email_verification_code != code:
+            return Response(
+                {'error': 'Code de vérification incorrect.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Apply the change
+        enterprise.email = enterprise.pending_email
+        enterprise.pending_email = None
+        enterprise.email_verification_code = None
+        enterprise.save()
+
+        return Response({
+            'message': 'Email modifié avec succès.',
+            'new_email': enterprise.email,
+        })
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def cancel_subscription(request):
+    """Cancel the enterprise subscription (sets status to cancelled)."""
+    enterprise = _get_enterprise_from_token(request)
+    if not enterprise:
+        return Response({'error': 'Entreprise non trouvée.'}, status=status.HTTP_404_NOT_FOUND)
+
+    password = request.data.get('password')
+    if not password or not enterprise.verify_password(password):
+        return Response(
+            {'error': 'Mot de passe incorrect. Veuillez confirmer votre identité.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    enterprise.account_status = 'cancelled'
+    enterprise.save()
+
+    return Response({'message': 'Votre abonnement a été résilié.'})

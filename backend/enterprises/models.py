@@ -15,6 +15,7 @@ class Enterprise(models.Model):
         ('pending_payment', 'En attente de paiement'),
         ('pending_activation', 'En attente d\'activation'),
         ('active', 'Actif'),
+        ('cancelled', 'Résilié'),
     ]
 
     INSTALLATION_TYPE_CHOICES = [
@@ -49,6 +50,10 @@ class Enterprise(models.Model):
         default='pending_payment',
     )
     created_at = models.DateTimeField('Date de création', auto_now_add=True)
+    pending_email = models.EmailField('Email en attente', blank=True, null=True)
+    email_verification_code = models.CharField(
+        'Code de vérification', max_length=6, blank=True, null=True
+    )
 
     class Meta:
         verbose_name = 'Entreprise'

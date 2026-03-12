@@ -45,10 +45,8 @@ http://localhost:8000/admin/enterprises/enterprise/{enterprise.id}/change/
 def send_password_reset_email(enterprise, temp_password):
     """
     Send a password reset email with a temporary password.
-    For hackathon demo: the temp password is included in the email.
-    In production, this would be a reset link with a token.
     """
-    subject = f"[Bouclier Solaire] Réinitialisation de mot de passe"
+    subject = "[Bouclier Solaire] Réinitialisation de mot de passe"
 
     message = f"""
 Bonjour {enterprise.contact_name},
@@ -76,5 +74,44 @@ L'équipe Bouclier Solaire
         message=message,
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[enterprise.email],
+        fail_silently=True,
+    )
+
+
+def send_email_verification_code(enterprise, code):
+    """
+    Send a 6-digit verification code to the enterprise's CURRENT email
+    for confirming an email change request.
+    """
+    subject = "[Bouclier Solaire] Code de vérification pour changement d'email"
+
+    message = f"""
+Bonjour {enterprise.contact_name},
+
+Vous avez demandé le changement de votre adresse email
+pour le compte de {enterprise.company_name} sur Bouclier Solaire.
+
+Nouvelle adresse demandée : {enterprise.pending_email}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  VOTRE CODE DE VÉRIFICATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  {code}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Si vous n'avez pas demandé ce changement, ignorez cet email.
+Ce code expire lors de la prochaine demande.
+
+Cordialement,
+L'équipe Bouclier Solaire
+"""
+
+    send_mail(
+        subject=subject,
+        message=message,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[enterprise.email],  # Send to OLD email for verification
         fail_silently=True,
     )
