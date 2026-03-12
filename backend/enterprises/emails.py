@@ -40,3 +40,41 @@ http://localhost:8000/admin/enterprises/enterprise/{enterprise.id}/change/
         recipient_list=[settings.ADMIN_NOTIFICATION_EMAIL],
         fail_silently=True,
     )
+
+
+def send_password_reset_email(enterprise, temp_password):
+    """
+    Send a password reset email with a temporary password.
+    For hackathon demo: the temp password is included in the email.
+    In production, this would be a reset link with a token.
+    """
+    subject = f"[Bouclier Solaire] Réinitialisation de mot de passe"
+
+    message = f"""
+Bonjour {enterprise.contact_name},
+
+Vous avez demandé la réinitialisation de votre mot de passe
+pour le compte de {enterprise.company_name} sur Bouclier Solaire.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  VOTRE NOUVEAU MOT DE PASSE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  {temp_password}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Connectez-vous avec ce mot de passe temporaire sur :
+http://localhost:3000/login
+
+Cordialement,
+L'équipe Bouclier Solaire
+"""
+
+    send_mail(
+        subject=subject,
+        message=message,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[enterprise.email],
+        fail_silently=True,
+    )

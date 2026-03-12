@@ -1,5 +1,6 @@
 import uuid
 from django.db import models
+from django.contrib.auth.hashers import make_password, check_password
 
 
 class Enterprise(models.Model):
@@ -32,8 +33,9 @@ class Enterprise(models.Model):
         choices=INSTALLATION_TYPE_CHOICES,
     )
     province = models.CharField('Province', max_length=100)
-    email = models.EmailField('Email professionnel')
+    email = models.EmailField('Email professionnel', unique=True)
     contact_name = models.CharField('Nom du contact', max_length=255)
+    password = models.CharField('Mot de passe', max_length=128)
     payment_status = models.CharField(
         'Statut de paiement',
         max_length=20,
@@ -55,3 +57,10 @@ class Enterprise(models.Model):
 
     def __str__(self):
         return f"{self.company_name} — {self.get_account_status_display()}"
+
+    def set_password(self, raw_password):
+        self.password = make_password(raw_password)
+
+    def verify_password(self, raw_password):
+        return check_password(raw_password, self.password)
+
