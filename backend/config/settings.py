@@ -112,19 +112,14 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# Email Configuration
-# For production: set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD env vars
-# For dev/hackathon: emails are printed to console
-EMAIL_BACKEND = os.environ.get(
-    'EMAIL_BACKEND',
-    'django.core.mail.backends.console.EmailBackend'
-)
+# Email Configuration — Real Gmail SMTP
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@bouclier-solaire.ma')
+EMAIL_HOST_USER = 'oussamabedlou@gmail.com'
+EMAIL_HOST_PASSWORD = 'lmga wntw zycd ikru'
+DEFAULT_FROM_EMAIL = 'Bouclier Solaire <oussamabedlou@gmail.com>'
 
 # Notification recipient
 ADMIN_NOTIFICATION_EMAIL = 'oussamabedlou@gmail.com'
