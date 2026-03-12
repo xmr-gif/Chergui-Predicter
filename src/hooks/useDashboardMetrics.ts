@@ -51,5 +51,6 @@ export function useDashboardMetrics() {
     },
     // Refresh every 30 seconds for real-time feel
     refetchInterval: 30000,
+    retry: 1, // Fail fast on errors to prevent long loading states
   });
 }
