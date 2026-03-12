@@ -1,4 +1,5 @@
 import { useState } from "react";
+import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import {
   Building2,
@@ -12,6 +13,7 @@ import {
   BarChart3,
   Wind,
   Bot,
+  Lock,
 } from "lucide-react";
 
 const LOGO_URL =
@@ -50,6 +52,8 @@ const planFeatures = [
 export default function Signup() {
   const navigate = useNavigate();
   const [step, setStep] = useState<"plan" | "form">("plan");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [formData, setFormData] = useState({
     companyName: "",
     capacity: "",
@@ -57,16 +61,36 @@ export default function Signup() {
     province: "",
     email: "",
     contactName: "",
+    password: "",
   });
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem("bs_authenticated", "true");
-    navigate("/");
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const res = await axios.post("/api/signup/", {
+        company_name: formData.companyName,
+        capacity: parseInt(formData.capacity),
+        installation_type: formData.installationType,
+        province: formData.province,
+        email: formData.email,
+        contact_name: formData.contactName,
+        password: formData.password,
+      });
+      navigate(`/payment?id=${res.data.id}`);
+    } catch (err: any) {
+      setSubmitError(
+        err.response?.data?.detail ||
+          "Erreur lors de l'inscription. Veuillez réessayer."
+      );
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -183,13 +207,10 @@ export default function Signup() {
             <p className="text-center text-xs text-slate-500">
               Déjà inscrit ?{" "}
               <button
-                onClick={() => {
-                  localStorage.setItem("bs_authenticated", "true");
-                  navigate("/");
-                }}
+                onClick={() => navigate("/login")}
                 className="text-amber-400 hover:text-amber-300 font-semibold underline underline-offset-2"
               >
-                Accéder au Dashboard
+                Se connecter
               </button>
             </p>
           </div>
@@ -318,6 +339,23 @@ export default function Signup() {
                 </div>
               </div>
 
+              {/* Password */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                  <Lock className="w-3 h-3 inline mr-1" />
+                  Mot de passe *
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={formData.password}
+                  onChange={(e) => handleChange("password", e.target.value)}
+                  placeholder="Minimum 6 caractères"
+                  className="w-full bg-[#111827] border border-[#1E2A3A] rounded-lg px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-amber-500/50 transition-colors"
+                />
+              </div>
+
               {/* Plan summary */}
               <div className="bg-[#111827] border border-[#1E2A3A] rounded-lg p-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -331,13 +369,30 @@ export default function Signup() {
                 </span>
               </div>
 
+              {/* Error */}
+              {submitError && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-xs text-red-400">
+                  {submitError}
+                </div>
+              )}
+
               {/* Submit */}
               <button
                 type="submit"
-                className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
+                disabled={isSubmitting}
+                className="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-amber-500/50 disabled:cursor-wait text-black font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
               >
-                Activer mon compte
-                <ArrowRight className="w-4 h-4" />
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                    Inscription en cours...
+                  </>
+                ) : (
+                  <>
+                    Continuer vers le paiement
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
 
               {/* Back */}
