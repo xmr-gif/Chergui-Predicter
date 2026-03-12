@@ -26,16 +26,6 @@ from .emails import (
 )
 
 
-def _get_enterprise_from_token(request):
-    """Extract enterprise from JWT token claims."""
-    enterprise_id = request.auth.get('enterprise_id') if request.auth else None
-    if not enterprise_id:
-        return None
-    try:
-        return Enterprise.objects.get(id=enterprise_id)
-    except Enterprise.DoesNotExist:
-        return None
-
 
 @api_view(['POST'])
 def signup(request):
@@ -238,9 +228,7 @@ def profile(request):
     GET: Return the current enterprise's profile.
     PUT: Update profile info (company_name, contact_name, etc.).
     """
-    enterprise = _get_enterprise_from_token(request)
-    if not enterprise:
-        return Response({'error': 'Entreprise non trouvée.'}, status=status.HTTP_404_NOT_FOUND)
+    enterprise = request.user
 
     if request.method == 'GET':
         serializer = EnterpriseProfileSerializer(enterprise)
@@ -260,9 +248,7 @@ def profile(request):
 @permission_classes([IsAuthenticated])
 def change_password(request):
     """Change password (requires current password)."""
-    enterprise = _get_enterprise_from_token(request)
-    if not enterprise:
-        return Response({'error': 'Entreprise non trouvée.'}, status=status.HTTP_404_NOT_FOUND)
+    enterprise = request.user
 
     serializer = ChangePasswordSerializer(data=request.data)
     if serializer.is_valid():
@@ -286,9 +272,7 @@ def request_email_change(request):
     Initiate email change: sends a 6-digit verification code to the OLD email.
     Requires password confirmation.
     """
-    enterprise = _get_enterprise_from_token(request)
-    if not enterprise:
-        return Response({'error': 'Entreprise non trouvée.'}, status=status.HTTP_404_NOT_FOUND)
+    enterprise = request.user
 
     serializer = RequestEmailChangeSerializer(data=request.data)
     if serializer.is_valid():
@@ -329,9 +313,7 @@ def confirm_email_change(request):
     """
     Confirm email change with the 6-digit verification code.
     """
-    enterprise = _get_enterprise_from_token(request)
-    if not enterprise:
-        return Response({'error': 'Entreprise non trouvée.'}, status=status.HTTP_404_NOT_FOUND)
+    enterprise = request.user
 
     serializer = ConfirmEmailChangeSerializer(data=request.data)
     if serializer.is_valid():
@@ -367,9 +349,7 @@ def confirm_email_change(request):
 @permission_classes([IsAuthenticated])
 def cancel_subscription(request):
     """Cancel the enterprise subscription (sets status to cancelled)."""
-    enterprise = _get_enterprise_from_token(request)
-    if not enterprise:
-        return Response({'error': 'Entreprise non trouvée.'}, status=status.HTTP_404_NOT_FOUND)
+    enterprise = request.user
 
     password = request.data.get('password')
     if not password or not enterprise.verify_password(password):
