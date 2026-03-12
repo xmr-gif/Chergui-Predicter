@@ -13,6 +13,7 @@ import {
   BarChart3,
   Wind,
   Bot,
+  Lock,
 } from "lucide-react";
 
 const LOGO_URL =
@@ -60,6 +61,7 @@ export default function Signup() {
     province: "",
     email: "",
     contactName: "",
+    password: "",
   });
 
   const handleChange = (field: string, value: string) => {
@@ -79,6 +81,7 @@ export default function Signup() {
         province: formData.province,
         email: formData.email,
         contact_name: formData.contactName,
+        password: formData.password,
       });
       navigate(`/payment?id=${res.data.id}`);
     } catch (err: any) {
@@ -204,13 +207,10 @@ export default function Signup() {
             <p className="text-center text-xs text-slate-500">
               Déjà inscrit ?{" "}
               <button
-                onClick={() => {
-                  localStorage.setItem("bs_authenticated", "true");
-                  navigate("/");
-                }}
+                onClick={() => navigate("/login")}
                 className="text-amber-400 hover:text-amber-300 font-semibold underline underline-offset-2"
               >
-                Accéder au Dashboard
+                Se connecter
               </button>
             </p>
           </div>
@@ -337,6 +337,23 @@ export default function Signup() {
                     className="w-full bg-[#111827] border border-[#1E2A3A] rounded-lg px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-amber-500/50 transition-colors"
                   />
                 </div>
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                  <Lock className="w-3 h-3 inline mr-1" />
+                  Mot de passe *
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={formData.password}
+                  onChange={(e) => handleChange("password", e.target.value)}
+                  placeholder="Minimum 6 caractères"
+                  className="w-full bg-[#111827] border border-[#1E2A3A] rounded-lg px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-amber-500/50 transition-colors"
+                />
               </div>
 
               {/* Plan summary */}
