@@ -1,4 +1,4 @@
-import { cherguiForecast } from "@/data/mockData";
+import { Forecast } from "@/hooks/useDashboardMetrics";
 import { Wind, Eye, Thermometer, Zap, AlertTriangle } from "lucide-react";
 
 const DUST_STORM_BG =
@@ -37,9 +37,9 @@ function getVisibilityColor(vis: string) {
   }
 }
 
-export default function PredictiveTimeline() {
-  const maxWind = Math.max(...cherguiForecast.map((f) => f.windSpeedKmh));
-  const peakDay = cherguiForecast.reduce((max, f) =>
+export default function PredictiveTimeline({ forecasts }: { forecasts: Forecast[] }) {
+  const maxWind = Math.max(...forecasts.map((f) => f.windSpeedKmh));
+  const peakDay = forecasts.reduce((max, f) =>
     f.dustProbability > max.dustProbability ? f : max
   );
 
@@ -73,7 +73,7 @@ export default function PredictiveTimeline() {
       {/* Timeline grid */}
       <div className="px-5 pb-5">
         <div className="grid grid-cols-7 gap-2">
-          {cherguiForecast.map((forecast, index) => {
+          {forecasts.map((forecast, index) => {
             const windColor = getWindColor(forecast.windSpeedKmh);
             const dustColor = getDustColor(forecast.dustProbability);
             const visColor = getVisibilityColor(forecast.visibility);

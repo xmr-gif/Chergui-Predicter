@@ -1,10 +1,18 @@
 import { useEffect, useState } from "react";
-import { yieldLossData } from "@/data/mockData";
+import { Site } from "@/hooks/useDashboardMetrics";
 import { TrendingDown, ArrowUp, Clock } from "lucide-react";
 
-export default function YieldLossGauge() {
+export default function YieldLossGauge({ sites }: { sites: Site[] }) {
+  const currentLossMAD = sites.reduce((sum, site) => sum + site.yieldLossMAD, 0);
+  const maxLossMAD = 3000000;
+  
+  // Example daily/monthly calculation relative to current loss
+  const dailyLossMAD = currentLossMAD * 0.45;
+  const monthlyLossMAD = currentLossMAD * 8.2;
+  const trend = "increasing" as const;
+
   const [animatedValue, setAnimatedValue] = useState(0);
-  const percentage = (yieldLossData.currentLossMAD / yieldLossData.maxLossMAD) * 100;
+  const percentage = Math.min((currentLossMAD / maxLossMAD) * 100, 100);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -171,7 +179,7 @@ export default function YieldLossGauge() {
             textAnchor="middle"
             dominantBaseline="middle"
           >
-            {formatMAD(yieldLossData.currentLossMAD)}
+            {formatMAD(currentLossMAD)}
           </text>
           <text
             x={size / 2}
@@ -195,7 +203,7 @@ export default function YieldLossGauge() {
             <span className="text-[10px] text-slate-500 uppercase">Today</span>
           </div>
           <p className="text-sm font-bold text-white font-mono">
-            {formatMAD(yieldLossData.dailyLossMAD)}
+            {(dailyLossMAD / 1000).toFixed(1)}K MAD
           </p>
           <p className="text-[10px] text-slate-500">MAD</p>
         </div>
@@ -205,7 +213,7 @@ export default function YieldLossGauge() {
             <span className="text-[10px] text-slate-500 uppercase">Monthly</span>
           </div>
           <p className="text-sm font-bold text-white font-mono">
-            {formatMAD(yieldLossData.monthlyLossMAD)}
+            {(monthlyLossMAD / 1000000).toFixed(2)}M MAD
           </p>
           <p className="text-[10px] text-slate-500">MAD</p>
         </div>
@@ -215,7 +223,17 @@ export default function YieldLossGauge() {
             <span className="text-[10px] text-slate-500 uppercase">Trend</span>
           </div>
           <p className="text-sm font-bold text-amber-400 capitalize">
-            {yieldLossData.trend}
+            {trend === "increasing" ? (
+              <>
+                <ArrowUp className="inline-block w-3 h-3 mr-1 text-red-400" />
+                Increasing
+              </>
+            ) : (
+              <>
+                <TrendingDown className="inline-block w-3 h-3 mr-1 text-green-400" />
+                Decreasing
+              </>
+            )}
           </p>
           <p className="text-[10px] text-slate-500">↑ Rising</p>
         </div>

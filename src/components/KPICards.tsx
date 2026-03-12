@@ -190,16 +190,18 @@ function AIActionCard() {
   );
 }
 
+import { KPI } from "@/hooks/useDashboardMetrics";
+
 // --- Main Export ---
-export default function KPICards() {
+export default function KPICards({ kpiData }: { kpiData: KPI }) {
   return (
     <div className="space-y-4">
       {/* Top row: 4 metric cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <KPICard
           title="Production Actuelle (MW)"
-          value="1,233 MW"
-          change={-8.2}
+          value={`${kpiData.totalOutputMW.toLocaleString()} MW`}
+          change={kpiData.totalOutputChange}
           changeLabel="vs. moyenne d'hier"
           icon={<Zap className="w-5 h-5" />}
           iconBg="bg-blue-500/15"
@@ -208,8 +210,8 @@ export default function KPICards() {
         />
         <KPICard
           title="Pertes Évitées (MAD)"
-          value="1.85M MAD"
-          change={12.5}
+          value={`${(kpiData.costSavingsMAD / 1000000).toFixed(2)}M MAD`}
+          change={kpiData.costSavingsChange}
           changeLabel="économies grâce à l'IA ce mois"
           icon={<ShieldCheck className="w-5 h-5" />}
           iconBg="bg-emerald-500/15"
@@ -218,8 +220,8 @@ export default function KPICards() {
         <TESGauge />
         <KPICard
           title="Perte de Rendement"
-          value="-12.5%"
-          change={-4.3}
+          value={`${kpiData.cleaningEfficiencyChange > 0 ? '+' : ''}${kpiData.cleaningEfficiencyChange}%`}
+          change={kpiData.cleaningEfficiencyChange}
           changeLabel="impact poussière + Chergui"
           icon={<TrendingDown className="w-5 h-5" />}
           iconBg="bg-red-500/15"

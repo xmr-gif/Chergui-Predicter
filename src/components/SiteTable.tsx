@@ -1,4 +1,4 @@
-import { solarSites } from "@/data/mockData";
+import { Site } from "@/hooks/useDashboardMetrics";
 import { ArrowUpDown, MoreHorizontal, Wrench, Zap } from "lucide-react";
 
 const statusConfig: Record<
@@ -48,8 +48,8 @@ function DustBar({ level }: { level: number }) {
   );
 }
 
-export default function SiteTable() {
-  const sortedSites = [...solarSites].sort(
+export default function SiteTable({ sites }: { sites: Site[] }) {
+  const sortedSites = [...sites].sort(
     (a, b) => b.yieldLossMAD - a.yieldLossMAD
   );
 

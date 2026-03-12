@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { solarSites, siteMapPositions } from "@/data/mockData";
+import {
+  orientalRegionPath,
+  algerianBorderPath,
+  siteMapPositions,
+} from "@/data/mockData";
+import { Site } from "@/hooks/useDashboardMetrics";
 import type { SolarSite } from "@/data/mockData";
 import { MapPin, Zap, Droplets, Wind } from "lucide-react";
 
@@ -62,8 +67,10 @@ function SiteTooltip({ site }: { site: SolarSite }) {
   );
 }
 
-export default function RegionalMap() {
+export default function RegionalMap({ sites }: { sites: Site[] }) {
   const [hoveredSite, setHoveredSite] = useState<string | null>(null);
+
+  const uniqueStatuses = Array.from(new Set(sites.map((site) => site.status)));
 
   return (
     <div className="bg-[#1A2332] border border-[#2A3A4E] rounded-xl p-5 h-full">
@@ -227,7 +234,7 @@ export default function RegionalMap() {
           </text>
 
           {/* Solar site markers */}
-          {solarSites.map((site) => {
+          {sites.map((site) => {
             const pos = siteMapPositions[site.id];
             if (!pos) return null;
             const color = statusColors[site.status];
@@ -299,12 +306,12 @@ export default function RegionalMap() {
           <div
             className="absolute"
             style={{
-              left: `${(siteMapPositions[hoveredSite].x / 420) * 100}%`,
-              top: `${(siteMapPositions[hoveredSite].y / 380) * 100}%`,
+                top: `${siteMapPositions[hoveredSite].y - 20}px`,
+                left: `${siteMapPositions[hoveredSite].x}px`,
             }}
           >
             <SiteTooltip
-              site={solarSites.find((s) => s.id === hoveredSite)!}
+              site={sites.find((s) => s.id === hoveredSite)!}
             />
           </div>
         )}
