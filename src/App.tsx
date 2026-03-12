@@ -7,6 +7,7 @@ import Index from './pages/Index';
 import Maintenance from './pages/Maintenance';
 import Signup from './pages/Signup';
 import Login from './pages/Login';
+import Settings from './pages/Settings';
 import Payment from './pages/Payment';
 import WaitingActivation from './pages/WaitingActivation';
 import NotFound from './pages/NotFound';
@@ -54,6 +55,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <Maintenance />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Settings />
               </ProtectedRoute>
             }
           />

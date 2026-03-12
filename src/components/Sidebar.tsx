@@ -8,7 +8,9 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  Settings,
 } from "lucide-react";
+import { clearTokens } from "@/lib/auth";
 
 const LOGO_URL =
   "https://mgx-backend-cdn.metadl.com/generate/images/1019406/2026-03-11/079759d0-9eae-4b84-b8d8-662aa2880fb5.png";
@@ -17,6 +19,7 @@ const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: CalendarDays, label: "Maintenance", path: "/maintenance" },
   { icon: Bell, label: "Alertes", path: "/", badge: 7 },
+  { icon: Settings, label: "Paramètres", path: "/settings" },
 ];
 
 interface SidebarProps {
@@ -39,8 +42,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("bs_authenticated");
-    navigate("/signup");
+    clearTokens();
+    navigate("/login");
   };
 
   return (
