@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=cherguidb
+      - POSTGRES_USER=cherguiuser
+      - POSTGRES_PASSWORD=cherguipass
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    command: >
+      sh -c "python manage.py migrate &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgres://cherguiuser:cherguipass@db:5432/cherguidb
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - DJANGO_DEBUG=False
+      - ALLOWED_HOSTS=localhost,127.0.0.1,backend
+      - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost
+    depends_on:
+      - db
+      - redis
+
+  celery:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A config worker -l info
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgres://cherguiuser:cherguipass@db:5432/cherguidb
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - DJANGO_DEBUG=False
+    depends_on:
+      - backend
+      - redis
+      - db
+
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A config beat -l info
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgres://cherguiuser:cherguipass@db:5432/cherguidb
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - DJANGO_DEBUG=False
+    depends_on:
+      - celery
+      - redis
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
