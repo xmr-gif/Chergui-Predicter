@@ -56,17 +56,20 @@ def get_base_efficiency(installation_type: str) -> int:
 def get_real_weather_forecast(lat: float, lng: float):
     """
     Fetch a 7-day weather forecast from Open-Meteo API.
-    Returns a dictionary of daily arrays.
+    Returns a dictionary with 'current' and 'daily' data.
     """
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,wind_direction_10m_dominant,et0_fao_evapotranspiration&timezone=auto"
+    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lng}&current=temperature_2m,wind_speed_10m,wind_direction_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,wind_direction_10m_dominant,et0_fao_evapotranspiration&timezone=auto"
     try:
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req) as response:
             data = json.loads(response.read().decode('utf-8'))
-            return data.get('daily', {})
+            return {
+                'current': data.get('current', {}),
+                'daily': data.get('daily', {})
+            }
     except Exception as e:
         print(f"Error fetching from Open-Meteo: {e}")
-        return {}
+        return {'current': {}, 'daily': {}}
 
 def generate_features_from_weather(date_offset_days, weather_data):
     """
@@ -79,12 +82,19 @@ def generate_features_from_weather(date_offset_days, weather_data):
 
     # Extract real weather if available, otherwise fallback to reasonable defaults
     try:
-        real_tmax = weather_data['temperature_2m_max'][date_offset_days]
-        real_tmin = weather_data['temperature_2m_min'][date_offset_days]
-        real_wind_max = weather_data['wind_speed_10m_max'][date_offset_days]
-        real_wind_dir = weather_data['wind_direction_10m_dominant'][date_offset_days]
-        real_precip = weather_data['precipitation_sum'][date_offset_days]
-        real_et0 = weather_data['et0_fao_evapotranspiration'][date_offset_days]
+        # If today (offset 0), use the exact current conditions instead of the daily maximums
+        if date_offset_days == 0 and 'temperature_2m' in weather_data['current']:
+            real_tmax = weather_data['current']['temperature_2m']
+            real_wind_max = weather_data['current']['wind_speed_10m']
+            real_wind_dir = weather_data['current']['wind_direction_10m']
+        else:
+            real_tmax = weather_data['daily']['temperature_2m_max'][date_offset_days]
+            real_wind_max = weather_data['daily']['wind_speed_10m_max'][date_offset_days]
+            real_wind_dir = weather_data['daily']['wind_direction_10m_dominant'][date_offset_days]
+            
+        real_tmin = weather_data['daily']['temperature_2m_min'][date_offset_days]
+        real_precip = weather_data['daily']['precipitation_sum'][date_offset_days]
+        real_et0 = weather_data['daily']['et0_fao_evapotranspiration'][date_offset_days]
     except Exception:
         # Fallbacks in case API fails
         real_tmax = 25

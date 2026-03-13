@@ -1,7 +1,13 @@
-Watching for file changes with StatReloader
-[13/Mar/2026 01:35:05] "GET /api/dashboard/metrics/ HTTP/1.1" 200 2767
-[13/Mar/2026 01:35:06] "GET /api/dashboard/metrics/ HTTP/1.1" 200 2767
-[13/Mar/2026 01:35:19] "GET /api/dashboard/metrics/ HTTP/1.1" 200 2767
-[13/Mar/2026 01:35:39] "GET /api/dashboard/metrics/ HTTP/1.1" 200 2767
-[13/Mar/2026 01:41:16] "GET /api/dashboard/metrics/ HTTP/1.1" 200 2767
-[13/Mar/2026 01:41:48] "GET /api/dashboard/metrics/ HTTP/1.1" 200 2767
+Traceback (most recent call last):
+  File "/Users/oussama/Desktop/Chergui-Predicter/backend/manage.py", line 11, in main
+    from django.core.management import execute_from_command_line
+ModuleNotFoundError: No module named 'django'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/oussama/Desktop/Chergui-Predicter/backend/manage.py", line 22, in <module>
+    main()
+  File "/Users/oussama/Desktop/Chergui-Predicter/backend/manage.py", line 13, in main
+    raise ImportError(
+ImportError: Couldn't import Django. Are you sure it's installed and available on your PYTHONPATH environment variable? Did you forget to activate a virtual environment?
