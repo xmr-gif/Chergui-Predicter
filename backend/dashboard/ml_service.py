@@ -19,15 +19,27 @@ except Exception as e:
     features_list = []
     print(f"Error loading model: {e}")
 
-# Solar Sites Configuration
-SOLAR_SITES = [
-    {"id": "abm", "name": "Ain Beni Mathar", "capacityMW": 472, "base_efficiency": 85},
-    {"id": "bouarfa", "name": "Bouarfa", "capacityMW": 320, "base_efficiency": 82},
-    {"id": "jerada", "name": "Jerada", "capacityMW": 185, "base_efficiency": 88},
-    {"id": "figuig", "name": "Figuig", "capacityMW": 250, "base_efficiency": 80},
-    {"id": "oujda", "name": "Oujda Solar Park", "capacityMW": 210, "base_efficiency": 89},
-    {"id": "tendrara", "name": "Tendrara", "capacityMW": 150, "base_efficiency": 81},
-]
+# Coordinates mapper for Moroccan Provinces
+PROVINCE_COORDS = {
+    "Oujda": {"lat": 34.68, "lng": -1.91},
+    "Jerada": {"lat": 34.31, "lng": -2.16},
+    "Figuig": {"lat": 32.11, "lng": -1.23},
+    "Bouarfa": {"lat": 32.52, "lng": -1.95},
+    "Ain Beni Mathar": {"lat": 34.0, "lng": -2.05},
+    "Nador": {"lat": 35.16, "lng": -2.93},
+    "Berkane": {"lat": 34.92, "lng": -2.32},
+    "Taourirt": {"lat": 34.40, "lng": -2.89},
+}
+
+def get_base_efficiency(installation_type: str) -> int:
+    """Returns baseline efficiency based on technology."""
+    mapping = {
+        'csp': 85,
+        'bifacial': 92,
+        'monofacial': 82,
+        'hybrid': 88,
+    }
+    return mapping.get(installation_type, 85)
 
 def generate_mock_features(date_offset_days=0):
     """
@@ -82,8 +94,8 @@ def generate_mock_features(date_offset_days=0):
     # Ensure exact order as features.pkl
     return pd.DataFrame([features], columns=features_list)
 
-def get_dashboard_data():
-    """Run model for today + next 6 days and format data for React Dashboard."""
+def get_dashboard_data(enterprise):
+    """Run model for today + next 6 days for the specific authenticated enterprise."""
     if not model:
         return {"error": "Model not loaded"}
 
@@ -122,50 +134,50 @@ def get_dashboard_data():
     # 2. Get today's prediction for site-level application
     today_dust_prob = forecasts[0]['dustProbability']
     
-    # 3. Generate Site Data (apply regional dust to individual sites with slight variations)
-    sites_data = []
-    total_output = 0
-    total_loss_mad = 0
+    # 3. Generate Site Data specifically for the logged in Enterprise
+    coords = PROVINCE_COORDS.get(enterprise.province, {"lat": 34.68, "lng": -1.91}) # Default to Oujda if province unknown
+    base_efficiency = get_base_efficiency(enterprise.installation_type)
     
-    for site in SOLAR_SITES:
-        # Add slight local variation (-15% to +15% of regional dust)
-        local_dust = max(0, min(100, int(today_dust_prob * np.random.uniform(0.85, 1.15))))
-        
-        efficiency = site['base_efficiency'] - (local_dust * 0.3)
-        current_output = int(site['capacityMW'] * (efficiency / 100))
-        total_output += current_output
-        
-        status = "operational"
-        if local_dust > 75: status = "critical"
-        elif local_dust > 50: status = "warning"
-        
-        # MAD loss calculation: 1 MW = ~1000 MAD/day
-        yield_loss = int((site['capacityMW'] - current_output) * 1000)
-        total_loss_mad += yield_loss
-        
-        next_cleaning = (datetime.now() + timedelta(days=int(max(1, (100-local_dust)/10)))).strftime("%Y-%m-%d 06:00")
-        
-        sites_data.append({
-            "id": site['id'],
-            "name": site['name'],
-            "capacityMW": site['capacityMW'],
-            "currentOutputMW": current_output,
-            "dustLevel": local_dust,
-            "status": status,
-            "nextCleaning": next_cleaning,
-            "yieldLossMAD": yield_loss,
-            "efficiency": round(efficiency, 1)
-        })
+    # ML predicted local dust
+    local_dust = max(0, min(100, int(today_dust_prob * np.random.uniform(0.9, 1.1))))
+    
+    # Drop efficiency based on dust severity
+    efficiency = base_efficiency - (local_dust * 0.3)
+    current_output = int(enterprise.capacity * (efficiency / 100))
+    
+    status = "operational"
+    if local_dust > 75: status = "critical"
+    elif local_dust > 50: status = "warning"
+    
+    # MAD loss calculation: 1 MW lost = ~1000 MAD/day
+    yield_loss = int((enterprise.capacity - current_output) * 1000)
+    
+    next_cleaning = (datetime.now() + timedelta(days=int(max(1, (100-local_dust)/10)))).strftime("%Y-%m-%d 06:00")
+    
+    sites_data = [{
+        "id": str(enterprise.id),
+        "name": enterprise.company_name,
+        "lat": coords["lat"],
+        "lng": coords["lng"],
+        "capacityMW": enterprise.capacity,
+        "currentOutputMW": current_output,
+        "dustLevel": local_dust,
+        "status": status,
+        "nextCleaning": next_cleaning,
+        "yieldLossMAD": yield_loss,
+        "efficiency": round(efficiency, 1)
+    }]
 
-    # 4. KPI Data
+    # 4. KPI Data (Now scoped only to this single enterprise)
     kpi_data = {
-        "totalOutputMW": total_output,
-        "totalOutputChange": -today_dust_prob * 0.1,  # Mock trend
-        "cleaningEfficiency": round(np.mean([s['efficiency'] for s in sites_data]), 1),
+        "totalOutputMW": current_output,
+        "totalOutputChange": -int(today_dust_prob * 0.05),
+        "cleaningEfficiency": round(efficiency, 1),
         "cleaningEfficiencyChange": -2.1 if today_dust_prob > 50 else 1.5,
-        "activeAlerts": len([s for s in sites_data if s['status'] in ['warning', 'critical']]),
-        "alertsChange": 2 if today_dust_prob > 50 else -1,
-        "costSavingsMAD": int(total_loss_mad * 1.5), # Assuming AI saves 1.5x what is lost
+        "activeAlerts": 1 if status in ['warning', 'critical'] else 0,
+        "alertsChange": 1 if today_dust_prob > 50 else 0,
+        "costSavingsMAD": int(yield_loss * 1.5), # Assuming AI saves 1.5x what is lost
+
         "costSavingsChange": 12.5,
     }
 

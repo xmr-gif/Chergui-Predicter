@@ -14,7 +14,7 @@ def dashboard_metrics(request):
     Loads the scikit-learn model, generates data for the 6 sites,
     and formats the response for the frontend components.
     """
-    data = get_dashboard_data()
+    data = get_dashboard_data(request.user)
     
     if "error" in data:
         return Response(
