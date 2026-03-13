@@ -36,10 +36,19 @@ export interface KPI {
   costSavingsChange: number;
 }
 
+export interface Alert {
+  id: string;
+  type: "warning" | "info" | "critical";
+  title: string;
+  message: string;
+  date: string;
+}
+
 export interface DashboardData {
   forecasts: Forecast[];
   sites: Site[];
   kpi: KPI;
+  alerts: Alert[];
 }
 
 export function useDashboardMetrics() {

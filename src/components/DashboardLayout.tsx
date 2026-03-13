@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
-import { Bell, Search, Shield, Clock, Sun } from "lucide-react";
+import { Bell, Search, Shield, Clock, Sun, AlertTriangle, Info } from "lucide-react";
+import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 
 const HERO_BG =
   "https://mgx-backend-cdn.metadl.com/generate/images/1019406/2026-03-11/1ee75861-33e6-41be-a4e4-9941fc0ac121.png";
@@ -12,6 +13,10 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [collapsed, setCollapsed] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  
+  const { data: metricsData } = useDashboardMetrics();
+  const alerts = metricsData?.alerts || [];
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -87,12 +92,74 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 </div>
               </div>
 
-              <button className="relative w-9 h-9 rounded-lg bg-[#111827] border border-[#1E2A3A] flex items-center justify-center text-slate-400 hover:text-white hover:border-[#2A3A4E] transition-colors">
-                <Bell className="w-4 h-4" />
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                  7
-                </span>
-              </button>
+              <div className="relative">
+                <button 
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className={`relative w-9 h-9 rounded-lg border flex items-center justify-center transition-colors ${
+                    showNotifications 
+                      ? "bg-[#1E2A3A] border-[#3B82F6] text-white" 
+                      : "bg-[#111827] border-[#1E2A3A] text-slate-400 hover:text-white hover:border-[#2A3A4E]"
+                  }`}
+                >
+                  <Bell className="w-4 h-4" />
+                  {alerts.length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                      {alerts.length}
+                    </span>
+                  )}
+                </button>
+
+                {/* Notifications Dropdown */}
+                {showNotifications && (
+                  <div className="absolute right-0 mt-3 w-80 bg-[#111827] border border-[#1E2A3A] rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-[#1E2A3A] bg-[#0A0F1C]">
+                      <h3 className="text-sm font-semibold text-white">Alertes IA</h3>
+                      <span className="text-[10px] font-medium bg-[#1E2A3A] text-slate-300 px-2 py-0.5 rounded-full">
+                        {alerts.length} Nouveaux
+                      </span>
+                    </div>
+                    
+                    <div className="max-h-[320px] overflow-y-auto">
+                      {alerts.length === 0 ? (
+                        <div className="p-6 text-center text-sm text-slate-500">
+                          Aucune alerte pour le moment.
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-[#1E2A3A]">
+                          {alerts.map((alert) => (
+                            <div key={alert.id} className="p-4 hover:bg-[#1A2332] transition-colors cursor-default">
+                              <div className="flex gap-3">
+                                <div className="mt-0.5">
+                                  {alert.type === 'warning' || alert.type === 'critical' ? (
+                                    <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                                      <AlertTriangle className="w-4 h-4 text-red-500" />
+                                    </div>
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                                      <Info className="w-4 h-4 text-blue-400" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1">
+                                  <h4 className="text-sm font-medium text-white mb-1">
+                                    {alert.title}
+                                  </h4>
+                                  <p className="text-xs text-slate-400 leading-relaxed">
+                                    {alert.message}
+                                  </p>
+                                  <p className="text-[10px] text-slate-500 mt-2 font-mono">
+                                    {alert.date}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-1.5">
                 <Shield className="w-3.5 h-3.5 text-emerald-400" />

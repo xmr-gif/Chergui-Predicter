@@ -11,16 +11,12 @@ import {
   Settings,
 } from "lucide-react";
 import { clearTokens } from "@/lib/auth";
+import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 
 const LOGO_URL =
   "https://mgx-backend-cdn.metadl.com/generate/images/1019406/2026-03-11/079759d0-9eae-4b84-b8d8-662aa2880fb5.png";
 
-const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  { icon: CalendarDays, label: "Maintenance", path: "/maintenance" },
-  { icon: Bell, label: "Alertes", path: "/", badge: 7 },
-  { icon: Settings, label: "Paramètres", path: "/settings" },
-];
+// Removed static navItems out of global scope to compute dynamically below
 
 interface SidebarProps {
   collapsed: boolean;
@@ -31,10 +27,20 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [mounted, setMounted] = useState(false);
+  
+  const { data: metricsData } = useDashboardMetrics();
+  const alertCount = metricsData?.alerts?.length || 0;
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const navItems = [
+    { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+    { icon: CalendarDays, label: "Maintenance", path: "/maintenance" },
+    { icon: Bell, label: "Alertes", path: "/", badge: alertCount },
+    { icon: Settings, label: "Paramètres", path: "/settings" },
+  ];
 
   const isActive = (path: string, label: string) => {
     if (label === "Alertes") return false;
@@ -98,12 +104,12 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               {!collapsed && (
                 <span className="text-sm font-medium">{item.label}</span>
               )}
-              {item.badge && !collapsed && (
+              {item.badge > 0 && !collapsed && (
                 <span className="ml-auto bg-red-500/20 text-red-400 text-[11px] font-semibold px-2 py-0.5 rounded-full">
                   {item.badge}
                 </span>
               )}
-              {item.badge && collapsed && (
+              {item.badge > 0 && collapsed && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                   {item.badge}
                 </span>

@@ -181,8 +181,35 @@ def get_dashboard_data(enterprise):
         "costSavingsChange": 12.5,
     }
 
+    # 5. Generate AI Alerts based on the 7-day forecast
+    alerts = []
+    
+    # Check for Storms
+    storm_day = next((f for f in forecasts if f['dustProbability'] > 60), None)
+    if storm_day:
+        alerts.append({
+            "id": "alert_storm",
+            "type": "warning",
+            "title": "Alerte Tempête Chergui",
+            "message": f"Une tempête de poussière est prévue pour {storm_day['day']} ({storm_day['date']}). Sauvegardez l'énergie dans vos batteries ou réduisez votre consommation.",
+            "date": datetime.now().strftime("%Y-%m-%d %H:%M")
+        })
+        
+        # Find best day to clean (first calm day *after* the storm)
+        calm_days_after = [f for f in forecasts if f['date'] > storm_day['date'] and f['dustProbability'] < 40 and f['windSpeedKmh'] < 30]
+        if calm_days_after:
+            best_clean_day = calm_days_after[0]
+            alerts.append({
+                "id": "alert_cleaning",
+                "type": "info",
+                "title": "Recommandation de Nettoyage",
+                "message": f"Le jour optimal pour nettoyer vos panneaux est le {best_clean_day['day']} ({best_clean_day['date']}) après la dissipation de la tempête.",
+                "date": datetime.now().strftime("%Y-%m-%d %H:%M")
+            })
+
     return {
         "forecasts": forecasts,
         "sites": sites_data,
-        "kpi": kpi_data
+        "kpi": kpi_data,
+        "alerts": alerts
     }
