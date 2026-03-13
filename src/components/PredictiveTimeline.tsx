@@ -37,7 +37,7 @@ function getVisibilityColor(vis: string) {
   }
 }
 
-export default function PredictiveTimeline({ forecasts }: { forecasts: Forecast[] }) {
+export default function PredictiveTimeline({ forecasts, siteName }: { forecasts: Forecast[], siteName: string }) {
   const maxWind = Math.max(...forecasts.map((f) => f.windSpeedKmh));
   const peakDay = forecasts.reduce((max, f) =>
     f.dustProbability > max.dustProbability ? f : max
@@ -55,7 +55,7 @@ export default function PredictiveTimeline({ forecasts }: { forecasts: Forecast[
           <div>
             <h3 className="text-base font-semibold text-white flex items-center gap-2">
               <Wind className="w-4 h-4 text-orange-400" />
-              Chergui Wind — 7-Day Predictive Timeline
+              Prévisions Vent Chergui — {siteName}
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
               Impact forecast on Oriental region energy production

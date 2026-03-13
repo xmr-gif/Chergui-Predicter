@@ -39,6 +39,9 @@ export default function Dashboard() {
     );
   }
 
+  // Extract strictly the site owned by the logged in enterprise
+  const ownedSite = data.sites.find(s => s.is_owned) || data.sites[0];
+
   return (
     <DashboardLayout>
       <div className="space-y-5">
@@ -51,15 +54,15 @@ export default function Dashboard() {
             <RegionalMap sites={data.sites} />
           </div>
           <div className="xl:col-span-2">
-            <YieldLossGauge sites={data.sites} />
+            <YieldLossGauge sites={[ownedSite]} />
           </div>
         </div>
 
         {/* Predictive Timeline */}
-        <PredictiveTimeline forecasts={data.forecasts} />
+        <PredictiveTimeline forecasts={data.forecasts} siteName={ownedSite.name} />
 
         {/* Site Table */}
-        <SiteTable sites={data.sites} />
+        <SiteTable sites={[ownedSite]} />
       </div>
     </DashboardLayout>
   );

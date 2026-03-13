@@ -23,6 +23,7 @@ export interface Site {
   nextCleaning: string;
   yieldLossMAD: number;
   efficiency: number;
+  is_owned: boolean;
 }
 
 export interface KPI {

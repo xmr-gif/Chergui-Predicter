@@ -11,100 +11,7 @@ import {
 } from "lucide-react";
 
 // --- TES Gauge Component ---
-function TESGauge() {
-  const value = 45;
-  const target = 50;
-  const size = 100;
-  const strokeWidth = 10;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const startAngle = 135;
-  const totalAngle = 270;
-  const arcLength = (totalAngle / 360) * circumference;
-  const [animVal, setAnimVal] = useState(0);
-
-  useEffect(() => {
-    const t = setTimeout(() => setAnimVal(value), 200);
-    return () => clearTimeout(t);
-  }, []);
-
-  const filledLength = (animVal / 100) * arcLength;
-  const targetAngle = startAngle + (target / 100) * totalAngle;
-  const targetRad = (targetAngle * Math.PI) / 180;
-  const tx = size / 2 + (radius) * Math.cos(targetRad);
-  const ty = size / 2 + (radius) * Math.sin(targetRad);
-
-  return (
-    <div className="bg-[#1A2332] border border-[#2A3A4E] rounded-xl p-5 hover:border-[#3A4A5E] transition-all duration-300 group hover:shadow-lg hover:shadow-black/20">
-      <div className="flex items-start justify-between mb-3">
-        <div className="w-11 h-11 rounded-lg flex items-center justify-center bg-cyan-500/15 transition-transform duration-300 group-hover:scale-110">
-          <Target className="w-5 h-5 text-cyan-400" />
-        </div>
-        <div className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-amber-500/10 text-amber-400">
-          <Target className="w-3 h-3" />
-          Cible: {target}%
-        </div>
-      </div>
-      <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-2">
-        TES (Taux d'Énergie Sauvegardée)
-      </p>
-      <div className="flex items-center gap-3">
-        <svg width={size} height={size * 0.65} viewBox={`0 0 ${size} ${size * 0.7}`} className="overflow-visible flex-shrink-0">
-          <defs>
-            <linearGradient id="tesGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#EF4444" />
-              <stop offset="50%" stopColor="#F59E0B" />
-              <stop offset="100%" stopColor="#10B981" />
-            </linearGradient>
-          </defs>
-          {/* Background arc */}
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke="#1E2A3A"
-            strokeWidth={strokeWidth}
-            strokeDasharray={`${arcLength} ${circumference - arcLength}`}
-            strokeLinecap="round"
-            style={{ transform: `rotate(${startAngle}deg)`, transformOrigin: "center" }}
-          />
-          {/* Filled arc */}
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke="url(#tesGrad)"
-            strokeWidth={strokeWidth}
-            strokeDasharray={`${filledLength} ${circumference - filledLength}`}
-            strokeLinecap="round"
-            style={{
-              transform: `rotate(${startAngle}deg)`,
-              transformOrigin: "center",
-              transition: "stroke-dasharray 1.2s ease-out",
-            }}
-          />
-          {/* Target marker */}
-          <circle cx={tx} cy={ty} r="4" fill="#F59E0B" stroke="#0A0F1C" strokeWidth="2" />
-          {/* Center value */}
-          <text x={size / 2} y={size / 2 - 2} fill="#F1F5F9" fontSize="20" fontFamily="JetBrains Mono, monospace" fontWeight="700" textAnchor="middle" dominantBaseline="middle">
-            {value}%
-          </text>
-        </svg>
-        <div>
-          <p className="text-[11px] text-slate-500">
-            {value < target ? (
-              <span className="text-amber-400">↓ {target - value}% sous la cible</span>
-            ) : (
-              <span className="text-emerald-400">✓ Cible atteinte</span>
-            )}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
+// TES Gauge SVG removed in favor of standard KPI Card component
 
 // --- Standard KPI Card ---
 interface KPICardProps {
@@ -217,7 +124,15 @@ export default function KPICards({ kpiData }: { kpiData: KPI }) {
           iconBg="bg-emerald-500/15"
           iconColor="text-emerald-400"
         />
-        <TESGauge />
+        <KPICard
+          title="TES (Énergie Sauvegardée)"
+          value={`${kpiData.cleaningEfficiency}%`}
+          change={kpiData.cleaningEfficiencyChange > 0 ? kpiData.cleaningEfficiencyChange : 0}
+          changeLabel="précision robotique IA"
+          icon={<Target className="w-5 h-5" />}
+          iconBg="bg-cyan-500/15"
+          iconColor="text-cyan-400"
+        />
         <KPICard
           title="Perte de Rendement"
           value={`${kpiData.cleaningEfficiencyChange > 0 ? '+' : ''}${kpiData.cleaningEfficiencyChange}%`}

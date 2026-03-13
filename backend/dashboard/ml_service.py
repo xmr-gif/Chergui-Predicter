@@ -31,6 +31,16 @@ PROVINCE_COORDS = {
     "Taourirt": {"lat": 34.40, "lng": -2.89},
 }
 
+# Regional sites mapping (for map context)
+SOLAR_SITES = [
+    {"id": "abm", "name": "Ain Beni Mathar", "province": "Ain Beni Mathar", "lat": 34.0, "lng": -2.05, "capacityMW": 472, "base_efficiency": 85},
+    {"id": "bouarfa", "name": "Bouarfa", "province": "Bouarfa", "lat": 32.52, "lng": -1.95, "capacityMW": 320, "base_efficiency": 82},
+    {"id": "jerada", "name": "Jerada", "province": "Jerada", "lat": 34.31, "lng": -2.16, "capacityMW": 185, "base_efficiency": 88},
+    {"id": "figuig", "name": "Figuig", "province": "Figuig", "lat": 32.11, "lng": -1.23, "capacityMW": 250, "base_efficiency": 80},
+    {"id": "oujda", "name": "Oujda Solar Park", "province": "Oujda", "lat": 34.68, "lng": -1.91, "capacityMW": 210, "base_efficiency": 89},
+    {"id": "tendrara", "name": "Tendrara", "province": "Jerada", "lat": 33.05, "lng": -2.02, "capacityMW": 150, "base_efficiency": 81},
+]
+
 def get_base_efficiency(installation_type: str) -> int:
     """Returns baseline efficiency based on technology."""
     mapping = {
@@ -165,8 +175,37 @@ def get_dashboard_data(enterprise):
         "status": status,
         "nextCleaning": next_cleaning,
         "yieldLossMAD": yield_loss,
-        "efficiency": round(efficiency, 1)
+        "efficiency": round(efficiency, 1),
+        "is_owned": True
     }]
+    
+    # Add regional context sites (excluding the province the enterprise is in to avoid direct overlap if possible, or just keep them)
+    # This provides the map with a full grid layout.
+    for site in SOLAR_SITES:
+        if site['province'] != enterprise.province:
+            # Generate generic stats for regional sites
+            reg_dust = max(0, min(100, int(today_dust_prob * np.random.uniform(0.85, 1.15))))
+            reg_eff = site['base_efficiency'] - (reg_dust * 0.3)
+            reg_output = int(site['capacityMW'] * (reg_eff / 100))
+            
+            reg_status = "operational"
+            if reg_dust > 75: reg_status = "critical"
+            elif reg_dust > 50: reg_status = "warning"
+            
+            sites_data.append({
+                "id": site['id'],
+                "name": site['name'],
+                "lat": site['lat'],
+                "lng": site['lng'],
+                "capacityMW": site['capacityMW'],
+                "currentOutputMW": reg_output,
+                "dustLevel": reg_dust,
+                "status": reg_status,
+                "nextCleaning": next_cleaning,
+                "yieldLossMAD": int((site['capacityMW'] - reg_output) * 1000),
+                "efficiency": round(reg_eff, 1),
+                "is_owned": False
+            })
 
     # 4. KPI Data (Now scoped only to this single enterprise)
     kpi_data = {
