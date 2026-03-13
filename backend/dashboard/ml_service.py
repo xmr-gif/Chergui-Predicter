@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import json
 import urllib.request
+import urllib.parse
 from datetime import datetime, timedelta
 
 # Load Model
@@ -21,7 +22,7 @@ except Exception as e:
     features_list = []
     print(f"Error loading model: {e}")
 
-# Coordinates mapper for Moroccan Provinces
+# Fallback Coordinates mapping (only used if Geocoding API completely fails)
 PROVINCE_COORDS = {
     "Oujda": {"lat": 34.68, "lng": -1.91},
     "Jerada": {"lat": 34.31, "lng": -2.16},
@@ -32,6 +33,34 @@ PROVINCE_COORDS = {
     "Berkane": {"lat": 34.92, "lng": -2.32},
     "Taourirt": {"lat": 34.40, "lng": -2.89},
 }
+
+def get_coordinates_from_province(province: str):
+    """
+    Dynamically fetches the exact coordinates of the enterprise's province
+    using Open-Meteo's free Geocoding API to ensure absolute regional accuracy.
+    """
+    # Clean up the name for better search results (e.g. "Oujda-Angad" -> "Oujda")
+    search_term = province.split('-')[0].split(' ')[0] if province else "Oujda"
+    safe_name = urllib.parse.quote(search_term)
+    
+    url = f"https://geocoding-api.open-meteo.com/v1/search?name={safe_name}&count=1&language=fr"
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            if data.get('results') and len(data['results']) > 0:
+                result = data['results'][0]
+                return {"lat": result["latitude"], "lng": result["longitude"]}
+    except Exception as e:
+        print(f"Geocoding Error for {province}: {e}")
+    
+    # Check if we have an explicit fallback
+    for key, value in PROVINCE_COORDS.items():
+        if key.lower() in str(province).lower():
+            return value
+            
+    # Absolute fallback to Oujda
+    return {"lat": 34.68, "lng": -1.91}
 
 # Regional sites mapping (for map context)
 SOLAR_SITES = [
@@ -154,7 +183,7 @@ def get_dashboard_data(enterprise):
         return {"error": "Model not loaded"}
 
     # 0. Get Real Weather Data from Open-Meteo
-    coords = PROVINCE_COORDS.get(enterprise.province, {"lat": 34.68, "lng": -1.91}) # Default to Oujda if province unknown
+    coords = get_coordinates_from_province(enterprise.province)
     weather_data = get_real_weather_forecast(coords["lat"], coords["lng"])
 
     # 1. Generate 7-day timeline forecasts
@@ -186,7 +215,8 @@ def get_dashboard_data(enterprise):
             "dustProbability": dust_prob,
             "energyImpactPercent": impact,
             "temperature": int(X['temp_max_C'].iloc[0]),
-            "visibility": vis
+            "visibility": vis,
+            "precipMm": round(float(X['pluie_mm'].iloc[0]), 1)
         })
 
     # 2. Get today's prediction for site-level application

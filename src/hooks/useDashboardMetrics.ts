@@ -9,6 +9,7 @@ export interface Forecast {
   energyImpactPercent: number;
   temperature: number;
   visibility: string;
+  precipMm: number;
 }
 
 export interface Site {

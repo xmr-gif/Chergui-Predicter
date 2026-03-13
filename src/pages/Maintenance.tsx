@@ -11,97 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 
-interface DaySchedule {
-  date: string;
-  dayLabel: string;
-  roiScore: number; // 0-100
-  status: "vert" | "orange" | "rouge";
-  dustForecast: number; // 0-100
-  precipMm: number;
-  windKmh: number;
-  recommendation: string;
-  sites: string[];
-}
-
-const weekSchedule: DaySchedule[] = [
-  {
-    date: "2026-03-12",
-    dayLabel: "Jeudi",
-    roiScore: 28,
-    status: "rouge",
-    dustForecast: 88,
-    precipMm: 0,
-    windKmh: 62,
-    recommendation: "Tempête Chergui imminente. Nettoyage interdit.",
-    sites: [],
-  },
-  {
-    date: "2026-03-13",
-    dayLabel: "Vendredi",
-    roiScore: 12,
-    status: "rouge",
-    dustForecast: 95,
-    precipMm: 0,
-    windKmh: 78,
-    recommendation: "Pic de tempête. Aucune intervention recommandée.",
-    sites: [],
-  },
-  {
-    date: "2026-03-14",
-    dayLabel: "Samedi",
-    roiScore: 45,
-    status: "orange",
-    dustForecast: 70,
-    precipMm: 2,
-    windKmh: 55,
-    recommendation: "Vents en baisse. Attendre confirmation.",
-    sites: ["Jerada"],
-  },
-  {
-    date: "2026-03-15",
-    dayLabel: "Dimanche",
-    roiScore: 82,
-    status: "vert",
-    dustForecast: 42,
-    precipMm: 0,
-    windKmh: 35,
-    recommendation: "Conditions favorables. Nettoyage prioritaire.",
-    sites: ["Bouarfa", "Figuig", "Tendrara"],
-  },
-  {
-    date: "2026-03-16",
-    dayLabel: "Lundi",
-    roiScore: 91,
-    status: "vert",
-    dustForecast: 18,
-    precipMm: 0,
-    windKmh: 20,
-    recommendation: "Conditions optimales. Nettoyage de masse recommandé.",
-    sites: ["Ain Beni Mathar", "Oujda", "Bouarfa", "Figuig"],
-  },
-  {
-    date: "2026-03-17",
-    dayLabel: "Mardi",
-    roiScore: 88,
-    status: "vert",
-    dustForecast: 8,
-    precipMm: 0,
-    windKmh: 12,
-    recommendation: "Fenêtre idéale. Compléter les sites restants.",
-    sites: ["Jerada", "Tendrara"],
-  },
-  {
-    date: "2026-03-18",
-    dayLabel: "Mercredi",
-    roiScore: 55,
-    status: "orange",
-    dustForecast: 35,
-    precipMm: 8,
-    windKmh: 28,
-    recommendation: "Pluie prévue l'après-midi. Nettoyage matinal possible.",
-    sites: ["Oujda"],
-  },
-];
+import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 
 const statusConfig = {
   vert: {
@@ -128,12 +38,62 @@ const statusConfig = {
     icon: AlertTriangle,
     barColor: "bg-red-500",
   },
-};
+} as const;
 
 export default function Maintenance() {
+  const { data, isLoading } = useDashboardMetrics();
+
+  if (isLoading || !data) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-[80vh] items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-400"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const ownedSite = data.sites.find((s) => s.is_owned);
+
+  const weekSchedule = data.forecasts.map((forecast) => {
+    // Dynamically calculate ROI based on dust and wind
+    // Lower dust and lower wind = better ROI
+    let roiScore = 100 - (forecast.dustProbability * 0.7) - (forecast.windSpeedKmh * 0.4);
+    roiScore = Math.max(0, Math.min(100, Math.round(roiScore)));
+
+    let status: "vert" | "orange" | "rouge" = "vert";
+    let recommendation = "Conditions optimales. Nettoyage recommandé.";
+
+    if (forecast.dustProbability > 60 || forecast.windSpeedKmh > 50) {
+      status = "rouge";
+      recommendation = "Tempête ou vents violents prévus. Aucune intervention recommandée.";
+    } else if (forecast.dustProbability > 30 || forecast.windSpeedKmh > 30 || forecast.precipMm > 2) {
+      status = "orange";
+      recommendation = "Conditions moyennes. Pluie forte ou vent modéré. Prudence.";
+    }
+
+    return {
+      date: forecast.date,
+      dayLabel: forecast.day,
+      roiScore,
+      status,
+      dustForecast: forecast.dustProbability,
+      precipMm: forecast.precipMm,
+      windKmh: forecast.windSpeedKmh,
+      recommendation,
+      sites: ownedSite && status !== "rouge" ? [ownedSite.name] : [],
+    };
+  });
+
   const optimalDays = weekSchedule.filter((d) => d.status === "vert").length;
+  const blockedDays = weekSchedule.filter((d) => d.status === "rouge").length;
   const avgROI =
     weekSchedule.reduce((sum, d) => sum + d.roiScore, 0) / weekSchedule.length;
+    
+  const plannedCleanings = weekSchedule.reduce((sum, d) => sum + d.sites.length, 0);
+
+  // Expected Savings: 1 MW loss ~ 1000 MAD. We assume a full cleaning recovers 1.5x of daily loss. 
+  const expectedSavings = ownedSite ? plannedCleanings * Math.round(ownedSite.yieldLossMAD * 1.5) : 0;
 
   return (
     <DashboardLayout>
@@ -191,7 +151,7 @@ export default function Maintenance() {
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <p className="text-sm font-bold text-white">{day.dayLabel}</p>
-                    <p className="text-[10px] text-slate-500">{day.date.slice(5)}</p>
+                    <p className="text-[10px] text-slate-500">{day.date}</p>
                   </div>
                   <StatusIcon className={`w-5 h-5 ${cfg.text}`} />
                 </div>
@@ -277,19 +237,23 @@ export default function Maintenance() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-[#111827] rounded-lg p-3 text-center">
               <p className="text-[10px] text-slate-500 uppercase mb-1">Sites à Nettoyer</p>
-              <p className="text-xl font-bold text-white font-mono">6</p>
+              <p className="text-xl font-bold text-white font-mono">{ownedSite ? 1 : 0}</p>
             </div>
             <div className="bg-[#111827] rounded-lg p-3 text-center">
-              <p className="text-[10px] text-slate-500 uppercase mb-1">Nettoyages Planifiés</p>
-              <p className="text-xl font-bold text-emerald-400 font-mono">12</p>
+              <p className="text-[10px] text-slate-500 uppercase mb-1">Jours d'Intervention</p>
+              <p className="text-xl font-bold text-emerald-400 font-mono">{plannedCleanings}</p>
             </div>
             <div className="bg-[#111827] rounded-lg p-3 text-center">
               <p className="text-[10px] text-slate-500 uppercase mb-1">Économies Prévues</p>
-              <p className="text-xl font-bold text-amber-400 font-mono">340K MAD</p>
+              <p className="text-xl font-bold text-amber-400 font-mono">
+                {expectedSavings > 1000 
+                  ? `${Math.round(expectedSavings/1000)}K MAD` 
+                  : `${expectedSavings} MAD`}
+              </p>
             </div>
             <div className="bg-[#111827] rounded-lg p-3 text-center">
               <p className="text-[10px] text-slate-500 uppercase mb-1">Jours Bloqués</p>
-              <p className="text-xl font-bold text-red-400 font-mono">2</p>
+              <p className="text-xl font-bold text-red-400 font-mono">{blockedDays}</p>
             </div>
           </div>
         </div>
